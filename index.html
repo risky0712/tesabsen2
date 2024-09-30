@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login dan Absensi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+
+    h2 {
+      font-size: 24px;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    input[type="text"], input[type="password"], button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #loginForm, #absensiPage {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media only screen and (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      input[type="text"], input[type="password"], button {
+        padding: 8px;
+        font-size: 16px;
+      }
+
+      button {
+        padding: 10px;
+      }
+
+      #absensiPage button {
+        margin: 5px 0;
+      }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    table, th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    @media only screen and (max-width: 600px) {
+      table, th, td {
+        font-size: 14px;
+      }
+    }
+  </style>
+  <script>
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbzh2U3VcCjkBrz1tYt-YK4pKavlFU4Ih_cCKetC71FAVdtGjKoH8ozN9jxbSTGlHM9svw/exec'; // Ganti dengan URL Web Apps kamu
+    const targetLat = 3.5154559402393692; // Lokasi target (Latitude)
+    const targetLng = 98.67312321534209;  // Lokasi target (Longitude)
+    const radius = 100; // Radius dalam meter
+
+    function getLocation(action) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function (position) {
+          var userLat = position.coords.latitude;
+          var userLng = position.coords.longitude;
+
+          // Hitung jarak dengan Haversine Formula
+          var distance = calculateDistance(userLat, userLng, targetLat, targetLng);
+
+          // Jika jarak dalam radius yang ditentukan
+          if (distance <= radius) {
+            // Kirim absensi ke server
+            absensi(action, userLat, userLng);
+          } else {
+            document.getElementById('absensiStatus').innerText = `Anda berada di luar radius absensi (${distance.toFixed(2)} meter).`;
+          }
+        });
+      } else {
+        document.getElementById('absensiStatus').innerText = "Geolocation tidak didukung oleh browser ini.";
+      }
+    }
+
+    // Menghitung jarak menggunakan Haversine Formula
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371e3; // Radius bumi dalam meter
+      const φ1 = lat1 * Math.PI / 180; // φ, λ dalam radian
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      const distance = R * c; // Jarak dalam meter
+      return distance;
+    }
+
+    function absensi(action, lat, lng) {
+  var username = localStorage.getItem('username');  // Ambil username dari localStorage
+  if (username) {
+    fetch(`${apiUrl}?action=absensi&username=${username}&actionType=${action}&lat=${lat}&lng=${lng}`)
+      .then(response => response.text())
+      .then(response => {
+        alert(response);  // Tampilkan hasil absensi di popup
+
+        // Reload halaman setelah pengguna menekan OK di alert
+        location.reload();  
+
+        // Tetap tampilkan hasil di elemen absensiStatus
+        document.getElementById('absensiStatus').innerText = response;
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert("Error mencatat absensi.");
+        document.getElementById('absensiStatus').innerText = "Error mencatat absensi.";
+      });
+  } else {
+    alert("Tidak ada username yang ditemukan. Silakan login kembali.");
+    document.getElementById('absensiStatus').innerText = "Tidak ada username yang ditemukan. Silakan login kembali.";
+  }
+}
+
+
+
+    function login() {
+      var username = document.getElementById('username').value;
+      var password = document.getElementById('password').value;
+
+      fetch(`${apiUrl}?action=login&username=${username}&password=${password}`)
+        .then(response => response.text())
+        .then(response => {
+          if (response === "Login Success") {
+            localStorage.setItem('username', username);  // Simpan username di localStorage
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('absensiPage').classList.remove('hidden');
+            document.getElementById('usernameDisplay').innerText = username;
+          } else {
+            document.getElementById('loginStatus').innerText = "Login Failed. Please try again.";
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          document.getElementById('loginStatus').innerText = "Login Failed. Please try again.";
+        });
+    }
+
+    function logout() {
+      localStorage.removeItem('username');  // Hapus username dari localStorage
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('absensiPage').classList.add('hidden');
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('loginStatus').innerText = '';
+      document.getElementById('absensiStatus').innerText = '';
+    }
+
+    window.onload = function() {
+      var username = localStorage.getItem('username');  // Ambil username dari localStorage
+      if (username) {
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('absensiPage').classList.remove('hidden');
+        document.getElementById('usernameDisplay').innerText = username;
+      } else {
+        document.getElementById('loginForm').classList.remove('hidden');
+        document.getElementById('absensiPage').classList.add('hidden');
+      }
+    };
+  </script>
+</head>
+<body>
+  <div id="loginForm">
+    <h2>Login</h2>
+    <label for="username">Username:</label><br>
+    <input type="text" id="username" name="username"><br>
+    <label for="password">Password:</label><br>
+    <input type="password" id="password" name="password"><br><br>
+    <button onclick="login()">Login</button>
+  <!-- / <p id="loginStatus" style="color:red;"></p> -->
+  </div>
+
+  <div id="absensiPage" class="hidden">
+    <h2>Welcome, <span id="usernameDisplay"></span></h2>
+    <button onclick="getLocation('masuk')">Catat Masuk</button>
+    <button onclick="getLocation('pulang')">Catat Pulang</button>
+    <button onclick="logout()">Logout</button>
+    <p id="absensiStatus" style="color:green;"></p>
+  </div>
+  
+</body>
+</html>
